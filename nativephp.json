@@ -1,0 +1,29 @@
+{
+    "namespace": "RapidCameraCapture",
+
+    "bridge_functions": [
+        {
+            "name": "RapidCameraCapture.OpenCamera",
+            "ios": "RapidCameraCaptureFunctions.OpenCamera",
+            "description": "Open the persistent camera capture interface. Stays open until the user dismisses it."
+        }
+    ],
+
+    "ios": {
+        "info_plist": {
+            "NSCameraUsageDescription": "This app uses your camera to capture photos."
+        },
+        "dependencies": {
+            "swift_packages": [],
+            "pods": []
+        }
+    },
+
+    "events": [
+        "PTeal79\\RapidCameraCapture\\Events\\ImageCaptured"
+    ],
+
+    "hooks": {
+        "copy_assets": "nativephp:rapid-camera-capture:copy-assets"
+    }
+}
