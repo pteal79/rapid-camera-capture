@@ -8,6 +8,10 @@ class RapidCameraCaptureViewController: UIViewController {
     private var captureSession: AVCaptureSession!
     private var photoOutput: AVCapturePhotoOutput!
     private var previewLayer: AVCaptureVideoPreviewLayer!
+    private var captureDevice: AVCaptureDevice!
+
+    // Tracks the zoom factor at the start of a pinch so we can scale relative to it.
+    private var zoomFactorAtPinchStart: CGFloat = 1.0
 
     // MARK: - UI
 
@@ -100,6 +104,8 @@ class RapidCameraCaptureViewController: UIViewController {
             return
         }
 
+        captureDevice = device
+
         captureSession.beginConfiguration()
 
         if captureSession.canAddInput(input) {
@@ -130,8 +136,35 @@ class RapidCameraCaptureViewController: UIViewController {
         previewLayer.frame = view.bounds
         view.layer.insertSublayer(previewLayer, at: 0)
 
+        let pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchToZoom(_:)))
+        view.addGestureRecognizer(pinchGesture)
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.captureSession.startRunning()
+        }
+    }
+
+    // MARK: - Zoom
+
+    @objc private func handlePinchToZoom(_ gesture: UIPinchGestureRecognizer) {
+        guard let device = captureDevice else { return }
+
+        if gesture.state == .began {
+            zoomFactorAtPinchStart = device.videoZoomFactor
+        }
+
+        // Clamp between 1x and a sensible ceiling (the native app caps well below
+        // the hardware max, which is mostly low-quality digital zoom).
+        let maxZoomFactor = min(device.activeFormat.videoMaxZoomFactor, 8.0)
+        let desiredZoomFactor = zoomFactorAtPinchStart * gesture.scale
+        let clampedZoomFactor = max(1.0, min(desiredZoomFactor, maxZoomFactor))
+
+        do {
+            try device.lockForConfiguration()
+            device.videoZoomFactor = clampedZoomFactor
+            device.unlockForConfiguration()
+        } catch {
+            // Unable to adjust zoom — ignore and keep the current factor.
         }
     }
 
