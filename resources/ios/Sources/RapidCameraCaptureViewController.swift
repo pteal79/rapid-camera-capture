@@ -111,6 +111,18 @@ class RapidCameraCaptureViewController: UIViewController {
             captureSession.addOutput(photoOutput)
         }
 
+        // Match the native Camera app: allow the full computational-photography
+        // pipeline (Deep Fusion, Smart HDR) and full-sensor resolution.
+        photoOutput.maxPhotoQualityPrioritization = .quality
+
+        if #available(iOS 16.0, *) {
+            if let dimensions = device.activeFormat.supportedMaxPhotoDimensions.last {
+                photoOutput.maxPhotoDimensions = dimensions
+            }
+        } else {
+            photoOutput.isHighResolutionCaptureEnabled = true
+        }
+
         captureSession.commitConfiguration()
 
         previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
@@ -155,7 +167,24 @@ class RapidCameraCaptureViewController: UIViewController {
 
         captureButton.isEnabled = false
 
-        let settings = AVCapturePhotoSettings()
+        // Force JPEG encoding so the saved .jpg file is a genuine JPEG
+        // (the default would produce HEVC/HEIC on supported devices).
+        let settings: AVCapturePhotoSettings
+        if photoOutput.availablePhotoCodecTypes.contains(.jpeg) {
+            settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        } else {
+            settings = AVCapturePhotoSettings()
+        }
+
+        // Prioritise quality over speed to match the native camera output.
+        settings.photoQualityPrioritization = .quality
+
+        if #available(iOS 16.0, *) {
+            settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+        } else {
+            settings.isHighResolutionPhotoEnabled = true
+        }
+
         if photoOutput.supportedFlashModes.contains(.auto) {
             settings.flashMode = .auto
         }
